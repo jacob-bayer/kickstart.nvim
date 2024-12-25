@@ -11,10 +11,14 @@ return {
   },
   cmd = 'Neotree',
   keys = {
-    { '\\', ':Neotree reveal<CR>', desc = 'NeoTree reveal', silent = true },
+    { '\\', ':Neotree toggle<CR>', desc = 'NeoTree toggle', silent = true },
   },
   opts = {
     filesystem = {
+      filtered_items = {
+        visibile = true,
+        hide_hidden = false,
+      },
       window = {
         mappings = {
           ['\\'] = 'close_window',

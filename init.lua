@@ -70,7 +70,7 @@ vim.opt.inccommand = 'split'
 vim.opt.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
-vim.opt.scrolloff = 10
+vim.opt.scrolloff = 5
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -297,6 +297,11 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>fu', undo.undo, { desc = '[U]ndo history' })
       vim.keymap.set('n', '-', builtin.buffers, { desc = 'Open buffers' })
 
+      -- Git
+      vim.keymap.set('n', '<leader>gh', builtin.git_bcommits, { desc = 'Browse commit history of current file' })
+      vim.keymap.set('n', '<leader>gl', builtin.git_branches, { desc = 'Browse git branches' })
+      vim.keymap.set('n', '<leader>gc', builtin.git_commits, { desc = 'Browse git commits' })
+
       vim.keymap.set('n', "'", function()
         builtin.marks(themes.get_dropdown())
       end, { desc = 'Bookmarks' })
@@ -304,7 +309,7 @@ require('lazy').setup({
         builtin.colorscheme(themes.get_dropdown { previewer = false, enable_preview = true })
       end, { desc = '[F]ind [C]olorschemes' })
 
-      vim.keymap.set({ 'n', 'i', 'v', 'x', 'o' }, '"', function()
+      vim.keymap.set({ 'n', 'v', 'x', 'o' }, '"', function()
         builtin.registers(themes.get_dropdown { previewer = false })
       end, { desc = 'Registers' })
       vim.keymap.set('n', '<leader>lq', function()
@@ -338,6 +343,50 @@ require('lazy').setup({
     end,
   },
 
+  {
+    'nvimdev/lspsaga.nvim',
+    config = function()
+      require('lspsaga').setup {
+        ui = { code_action = '' },
+      }
+    end,
+    dependencies = {
+      -- 'nvim-treesitter/nvim-treestitter',
+      'nvim-tree/nvim-web-devicons',
+    },
+  },
+  { 'tpope/vim-dadbod' },
+  {
+    'kristijanhusak/vim-dadbod-ui',
+    ft = { 'sql' },
+    dependencies = {
+      { 'tpope/vim-dadbod', lazy = true },
+      { 'kristijanhusak/vim-dadbod-completion', ft = { 'sql' }, lazy = true },
+    },
+    cmd = {
+      'DBUI',
+      'DBUIToggle',
+      'DBUIAddConnection',
+      'DBUIFindBuffer',
+    },
+    init = function()
+      vim.g.db_ui_use_nerd_fonts = 1
+      vim.g.db_ui_execute_on_save = 0
+      vim.g.db_ui_disable_mappings_sql = 1
+    end,
+    config = function()
+      vim.keymap.set({ 'n' }, '<leader>s', ':normal vas<CR><Plug>(DBUI_ExecuteQuery)', { desc = 'Execute query' })
+      vim.keymap.set({ 'v' }, '<leader>s', '<Plug>(DBUI_ExecuteQuery)', { desc = 'Execute query' })
+      vim.keymap.set({ 'n' }, '<leader>w', '<Plug>(DBUI_SaveQuery)', { desc = 'Save query' })
+      vim.keymap.set({ 'n' }, '<leader>e', '<Plug>(DBUI_EditBindParameters)', { desc = 'Edit bind parameters' })
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = { 'dbout' },
+        callback = function()
+          vim.wo.foldenable = false
+        end,
+      })
+    end,
+  },
   -- LSP Plugins
   {
     -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
@@ -411,38 +460,42 @@ require('lazy').setup({
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
           end
 
+          local ts = require 'telescope.builtin'
+
           -- Jump to the definition of the word under your cursor.
           --  This is where a variable was first declared, or where a function is defined, etc.
           --  To jump back, press <C-t>.
-          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+          map('gd', ts.lsp_definitions, '[G]oto [D]efinition')
+          -- map('gd', '<cmd>Lspsaga peek_definition<CR>', '[G]oto [D]efinition')
 
           -- Find references for the word under your cursor.
-          map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+          map('gr', ts.lsp_references, '[G]oto [R]eferences')
 
           -- Jump to the implementation of the word under your cursor.
           --  Useful when your language has ways of declaring types without an actual implementation.
-          map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+          map('gI', ts.lsp_implementations, '[G]oto [I]mplementation')
 
           -- Jump to the type of the word under your cursor.
           --  Useful when you're not sure what type a variable is and you want to see
           --  the definition of its *type*, not where it was *defined*.
-          map('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
+          map('gt', '<cmd>Lspsaga peek_type_definition<CR>', 'Peek [t]ype definition')
+          map('gT', ts.lsp_type_definitions, '[T]ype definition')
 
           -- Fuzzy find all the symbols in your current document.
           --  Symbols are things like variables, functions, types, etc.
-          map('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
+          map('<leader>ld', ts.lsp_document_symbols, '[D]ocument [S]ymbols')
 
           -- Fuzzy find all the symbols in your current workspace.
           --  Similar to document symbols, except searches over your entire project.
-          map('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
+          map('<leader>lw', ts.lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
 
           -- Rename the variable under your cursor.
           --  Most Language Servers support renaming across files, etc.
-          map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
+          map('<leader>lr', vim.lsp.buf.rename, '[R]ename')
 
           -- Execute a code action, usually your cursor needs to be on top of an error
           -- or a suggestion from your LSP for this to activate.
-          map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction', { 'n', 'x' })
+          map('<leader>la', vim.lsp.buf.code_action, 'Code [A]ction', { 'n', 'x' })
 
           -- WARN: This is not Goto Definition, this is Goto Declaration.
           --  For example, in C this would take you to the header.
@@ -508,7 +561,7 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        basedpyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -572,16 +625,17 @@ require('lazy').setup({
     cmd = { 'ConformInfo' },
     keys = {
       {
-        '<leader>f',
+        '<C-A-l>',
         function()
           require('conform').format { async = true, lsp_format = 'fallback' }
         end,
         mode = '',
-        desc = '[F]ormat buffer',
+        desc = 'Format buffer',
       },
     },
     opts = {
-      notify_on_error = false,
+      -- log_level = vim.log.levels.DEBUG,
+      notify_on_error = true,
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
@@ -601,10 +655,10 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
-        --
+        python = { 'black' },
+        sql = { 'sqlfluff' },
         -- You can use 'stop_after_first' to run the first available formatter from the list
-        -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        javascript = { 'prettierd', 'prettier', stop_after_first = true },
       },
     },
   },
@@ -720,6 +774,8 @@ require('lazy').setup({
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
           { name = 'path' },
+          { name = 'vim-dadbod-completion' },
+          { name = 'buffer' },
         },
       }
     end,
@@ -736,11 +792,25 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'tokyonight'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
     end,
+    opts = {
+      style = 'moon',
+      light_style = 'day',
+      styles = {
+        comments = { italic = false },
+        keywords = { italic = false },
+        functions = { italic = false },
+        variables = { italic = false },
+        sidebars = 'dark',
+        floats = 'dark',
+      },
+      day_brightness = 0.3,
+      lualine_bold = false,
+    },
   },
 
   -- Highlight todo, notes, etc in comments
@@ -756,6 +826,15 @@ require('lazy').setup({
       --  - yinq - [Y]ank [I]nside [N]ext [Q]uote
       --  - ci'  - [C]hange [I]nside [']quote
       require('mini.ai').setup { n_lines = 500 }
+
+      require('mini.comment').setup {
+        mappings = {
+          comment = '',
+          comment_line = 'gcc',
+          comment_visual = '|',
+          textobject = '',
+        },
+      }
 
       -- Add/delete/replace surroundings (brackets, quotes, etc.)
       --
@@ -818,11 +897,11 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
-  -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.indent_line',
+  require 'kickstart.plugins.lint',
+  require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
@@ -893,7 +972,7 @@ vim.keymap.set('n', '<leader>lM', vim.cmd.Mason, { desc = 'Open Mason' })
 -- vim.keymap.set({ 'n', 'v', 'x', 'o' }, '<leader>zo', ':foldopen<CR>')
 -- vim.keymap.set({ 'n', 'v', 'x', 'o' }, '<leader>zc', ':fold<CR>')
 vim.keymap.set('n', '<C-a>', 'gg<S-v>G', { desc = 'Select all' })
-vim.keymap.set('n', '<C-/>', ':normal gcc<CR><Down>', { desc = 'Comment line' })
+vim.keymap.set('n', '|', ':normal gcc<CR><Down>', { desc = 'Comment line' })
 
 -- Gitsigns section
 local gitsigns = require 'gitsigns'
